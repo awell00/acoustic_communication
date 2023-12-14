@@ -158,11 +158,11 @@ def play_sound():
 
 # Define the Gradio interface
 with gr.Blocks() as demo:
-    name = gr.Textbox(label="Your Text")
+    name = gr.Textbox(label="Your Text ezlfkejzfljz")
     output = gr.Textbox(label="Output")
     submit = gr.Button("Generate Audio")
     submit.click(fn=encode_and_generate_audio, inputs=name, outputs=output)
 
     gr.Interface(fn=play_sound, inputs=[], outputs=gr.Audio(), live=False)
 
-demo.launch()
+demo.launch(server_name="0.0.0.0", server_port=8080)
