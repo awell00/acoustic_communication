@@ -9,11 +9,14 @@ import random
 from IPython.display import Audio, display
 import os
 
+input_file = 'input_text.wav'
+output_file = 'output_filtered_sender.wav'
+
 low_frequency = 18000
 high_frequency = 19000
 bit_duration = 0.007
 sample_rate = 44100
-amplitude_scaling_factor = 10.0
+amplitude_scaling_factor = 15.0
 
 def delete_file(file_path):
     try:
@@ -156,13 +159,13 @@ def play_sound():
 
 #-----------------Interface-----------------#
 
-# Define the Gradio interface
+# Define the Gradio interface 
 with gr.Blocks() as demo:
-    name = gr.Textbox(label="Your Text ezlfkejzfljz")
+    name = gr.Textbox(label="Your Text")
     output = gr.Textbox(label="Output")
     submit = gr.Button("Generate Audio")
     submit.click(fn=encode_and_generate_audio, inputs=name, outputs=output)
 
     gr.Interface(fn=play_sound, inputs=[], outputs=gr.Audio(), live=False)
 
-demo.launch(server_name="0.0.0.0", server_port=8080)
+demo.launch()
