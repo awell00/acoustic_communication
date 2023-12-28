@@ -204,11 +204,11 @@ def receive():
 with gr.Blocks() as demo:
     input_audio = gr.Audio(sources=["upload"])
     output = gr.Textbox(label="Record Sound")
-    btn = gr.Button(value="Send")
+    btn = gr.Button(value="Convert")
     btn.click(fn=record, inputs=input_audio, outputs=output)
 
     output_third = gr.Textbox(label="Received Text")
-    btn_3 = gr.Button(value="Play WAV")
+    btn_3 = gr.Button(value="Received Text")
     btn_3.click(fn=receive, outputs=output_third)
 
 demo.launch()
