@@ -144,7 +144,7 @@ To get a local copy up and running follow these simple example steps.
 - Record ambient sound using a smartphone equipped with a specific app, such as AVR X on iPhone, capable of saving audio files in WAV format, mono channel, and a sampling rate of 44,100 Hz.
 - Open the receiver interface using the receiver.py file.
 - Click the "Convert" button to add your audio file in it and convert the audio for analysis.
-- The received text will be displayed in the interface when you click on the "Receive Text".
+- The received text will be displayed in the interface when you click on the "Received Text".
   
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
