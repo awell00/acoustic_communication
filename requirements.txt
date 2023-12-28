@@ -1,6 +1,6 @@
 numpy~=1.24.3
 sounddevice~=0.4.6
-gradio~=4.8.0
+gradio~=4.11.0
 reedsolo~=1.7.0
 scipy~=1.11.4
 tqdm~=4.66.1
