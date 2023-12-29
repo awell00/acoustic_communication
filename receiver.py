@@ -13,6 +13,8 @@ import reedsolo
 import wavio
 from scipy.signal import butter, lfilter
 
+#---------------Parameters---------------#
+
 low_frequency = 18000
 high_frequency = 19000 
 bit_duration = 0.007
@@ -32,8 +34,8 @@ def record(audio):
 
 #-----------------Filter-----------------#
 
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyquist = 0.5 * fs
+def butter_bandpass(lowcut, highcut, sr, order=5):
+    nyquist = 0.5 * sr
     low = lowcut / nyquist
     high = highcut / nyquist
     coef = butter(order, [low, high], btype='band')
@@ -41,8 +43,8 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     a = coef[1]
     return b, a
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+def butter_bandpass_filter(data, lowcut, highcut, sr, order=5):
+    b, a = butter_bandpass(lowcut, highcut, sr, order=order)
     y = lfilter(b, a, data)
     return y
 
@@ -52,10 +54,10 @@ def main():
     lowcut = 17500
     highcut = 19500
 
-    fs, data = read(input_file)
+    sr, data = read(input_file)
 
-    filtered_data = butter_bandpass_filter(data, lowcut, highcut, 44100)
-    write(output_file, fs, np.int16(filtered_data))
+    filtered_data = butter_bandpass_filter(data, lowcut, highcut, sr)
+    write(output_file, sr, np.int16(filtered_data))
     return "Filtered Audio Generated"
 
 #-----------------Frame-----------------#
@@ -78,7 +80,7 @@ def calculate_snr(data, start, end, target_frequency, sample_rate):
 filename = 'output_filtered_receiver.wav'
 
 def frame_analyse(filename):
-    fs, y = read(filename)
+    sr, y = read(filename)
 
     first_part_start = 0
     first_part_end = len(y) // 2
@@ -89,7 +91,7 @@ def frame_analyse(filename):
     nperseg = 256
     noverlap = 128
 
-    f, t, Sxx = signal.spectrogram(y, fs, nperseg=nperseg, noverlap=noverlap)
+    f, t, Sxx = signal.spectrogram(y, sr, nperseg=nperseg, noverlap=noverlap)
 
     plt.figure()
     plt.pcolormesh(t, f, Sxx, shading="gouraud")
@@ -159,17 +161,17 @@ def manchester_decoding(binary_string):
 def signal_to_binary_between_times(filename):
     start_time, end_time = frame_analyse(filename)
 
-    sample_rate, data = read(filename)
+    sr, data = read(filename)
 
-    start_sample = int((start_time - 0.007) * sample_rate)
-    end_sample = int((end_time - 0.007) * sample_rate)
+    start_sample = int((start_time - 0.007) * sr)
+    end_sample = int((end_time - 0.007) * sr)
     binary_string = ''
 
     start_analyse_time = time.time()
 
-    for i in tqdm(range(start_sample, end_sample, int(sample_rate * bit_duration))):
+    for i in tqdm(range(start_sample, end_sample, int(sr * bit_duration))):
         signal = data[i:i + int(sample_rate * bit_duration)]
-        frequency = dominant_frequency(signal, sample_rate)
+        frequency = dominant_frequency(signal, sr)
         if np.abs(frequency - low_frequency) < np.abs(frequency - high_frequency):
             binary_string += '0'
         else:
@@ -192,8 +194,6 @@ def signal_to_binary_between_times(filename):
 
     return decoded_binary_string 
 
-#-----------------Interface-----------------#
-
 def receive():
     try:
         audio_receive = signal_to_binary_between_times('output_filtered_receiver.wav')
@@ -201,14 +201,16 @@ def receive():
     except Exception as e:
         return f"Error: {e}"
 
+#-----------------Interface-----------------#
+
 with gr.Blocks() as demo:
     input_audio = gr.Audio(sources=["upload"])
-    output = gr.Textbox(label="Record Sound")
-    btn = gr.Button(value="Convert")
-    btn.click(fn=record, inputs=input_audio, outputs=output)
+    output_text = gr.Textbox(label="Record Sound")
+    btn_convert = gr.Button(value="Convert")
+    btn_convert.click(fn=record, inputs=input_audio, outputs=output_text)
 
-    output_third = gr.Textbox(label="Received Text")
-    btn_3 = gr.Button(value="Received Text")
-    btn_3.click(fn=receive, outputs=output_third)
+    output_convert = gr.Textbox(label="Received Text")
+    btn_receive = gr.Button(value="Received Text")
+    btn_receive.click(fn=receive, outputs=output_convert)
 
 demo.launch()
