@@ -5,3 +5,5 @@ reedsolo~=1.7.0
 scipy~=1.11.4
 tqdm~=4.66.1
 ipython~=8.12.2
+matplotlib~=3.5.1
+wavio~=0.0.4
