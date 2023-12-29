@@ -9,6 +9,8 @@ import random
 from IPython.display import Audio, display
 import os
 
+#---------------Parameters---------------#
+
 input_file = 'input_text.wav'
 output_file = 'output_filtered_sender.wav'
 
@@ -17,6 +19,8 @@ high_frequency = 19000
 bit_duration = 0.007
 sample_rate = 44100
 amplitude_scaling_factor = 15.0
+
+#----------------Useless----------------#
 
 def delete_file(file_path):
     try:
@@ -118,8 +122,8 @@ def encode_and_generate_audio(text):
 
 #-----------------Filter-----------------#
 
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyquist = 0.5 * fs
+def butter_bandpass(lowcut, highcut, sr, order=5):
+    nyquist = 0.5 * sr
     low = lowcut / nyquist
     high = highcut / nyquist
     coef = butter(order, [low, high], btype='band')
@@ -127,8 +131,8 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     a = coef[1]
     return b, a
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+def butter_bandpass_filter(data, lowcut, highcut, sr, order=5):
+    b, a = butter_bandpass(lowcut, highcut, sr, order=order)
     y = lfilter(b, a, data)
     return y
 
@@ -139,10 +143,10 @@ def main():
     highcut = 19000
 
     try:
-        fs, data = read(input_file)
+        sr, data = read(input_file)
 
-        filtered_data = butter_bandpass_filter(data, lowcut, highcut, fs)
-        write(output_file, fs, np.int16(filtered_data))
+        filtered_data = butter_bandpass_filter(data, lowcut, highcut, sr)
+        write(output_file, sr, np.int16(filtered_data))
         return "Filtered Audio Generated"
     except Exception as e:
         return f"Error: {str(e)}"
@@ -155,7 +159,6 @@ wav_file_path = "output_filtered_sender.wav"
 def play_sound():
     # You can replace 'your_sound_file.mp3' with the path to your sound file
     return gr.Audio(wav_file_path, autoplay=True)
-
 
 #-----------------Interface-----------------#
 
