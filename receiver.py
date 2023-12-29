@@ -1,216 +1,177 @@
 import numpy as np
-import sounddevice as sd
-from scipy.io.wavfile import read, write
-from scipy.signal import find_peaks
-from scipy.fft import fft
+from scipy.io.wavfile import write, read
 from tqdm import tqdm
-import time
-import matplotlib.pyplot as plt
-from scipy.io.wavfile import read
-from scipy import signal
 import gradio as gr
-import reedsolo
-import wavio
 from scipy.signal import butter, lfilter
+import reedsolo
+import os
 
-#---------------Parameters---------------#
+# ---------------Parameters--------------- #
+
+audio_file = 'output_filtered_sender.wav'
 
 low_frequency = 18000
-high_frequency = 19000 
+high_frequency = 19000
 bit_duration = 0.007
 sample_rate = 44100
-amplitude_scaling_factor = 10.0
+amplitude_scaling_factor = 15.0
 
-#-----------------Record-----------------#
 
-def record(audio):
+# ----------------Useless---------------- #
+def delete_file(file_path):
     try:
-        sr, data = audio
-        wavio.write("recorded.wav", data, sr)
-        main()
-        return f"Audio receive correctly"
-    except Exception as e:
-        return f"Error: {e}"
+        os.remove(file_path)
+        print(f"File '{file_path}' deleted successfully.")
+    except OSError as e:
+        print(f"Error deleting file '{file_path}': {e}")
 
-#-----------------Filter-----------------#
 
-def butter_bandpass(lowcut, highcut, sr, order=5):
+# -----------------Sender----------------- #
+
+def text_to_binary(text):
+    binary_string = ''.join(format(ord(char), '08b') for char in text)
+    return binary_string
+
+
+def signal_function(frequency, time):
+    return np.sin(2 * np.pi * frequency * time)
+
+
+def generate_silence(duration):
+    return np.zeros(int(sample_rate * duration))
+
+
+def binary_signal(binary_string):
+    t = np.linspace(0, bit_duration, int(sample_rate * bit_duration), False)
+    signal = []
+
+    for bit in tqdm(binary_string, desc="Generating Signal"):
+        if bit == '0':
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(low_frequency, t)))
+        else:
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(high_frequency, t)))
+
+    return np.concatenate(signal)
+
+
+def flag_encoding(bit_value):
+    flag_duration = 6 * 0.0014
+    t_flag = np.linspace(0, flag_duration, int(sample_rate * flag_duration), False)
+    signal = []
+
+    if bit_value == 0:
+        binary_flag = "100001"
+        for bit in binary_flag:
+            if bit == '0':
+                signal.append(amplitude_scaling_factor * np.sign(signal_function(low_frequency, t_flag)))
+            else:
+                signal.append(amplitude_scaling_factor * np.sign(signal_function(high_frequency, t_flag)))
+
+        return np.concatenate(signal)
+    else:
+        binary_flag = "011110"
+        for bit in tqdm(binary_flag, desc="Generating Signal"):
+            if bit == '0':
+                signal.append(amplitude_scaling_factor * np.sign(signal_function(low_frequency, t_flag)))
+            else:
+                signal.append(amplitude_scaling_factor * np.sign(signal_function(high_frequency, t_flag)))
+
+        return np.concatenate(signal)
+
+
+def encode_rs(binary_string, ecc_bytes):
+    byte_data = bytearray(int(binary_string[i:i + 8], 2) for i in range(0, len(binary_string), 8))
+    rs = reedsolo.RSCodec(ecc_bytes)
+    encoded_data = rs.encode(byte_data)
+    encoded_binary_string = ''.join(format(byte, '08b') for byte in encoded_data)
+    return encoded_binary_string
+
+
+def manchester_encoding(binary_string):
+    encode_binary_string = encode_rs(binary_string, 20)
+
+    t = np.linspace(0, bit_duration, int(sample_rate * bit_duration), False)
+    signal = []
+
+    for bit in tqdm(encode_binary_string, desc="Generating Signal"):
+        if bit == '0':
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(low_frequency, t)))
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(high_frequency, t)))
+        else:
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(high_frequency, t)))
+            signal.append(amplitude_scaling_factor * np.sign(signal_function(low_frequency, t)))
+
+    return np.concatenate(signal)
+
+
+def binary_to_signal(binary_string):
+    flag_start = flag_encoding(0)
+    flag_end = flag_encoding(1)
+    silence_duration = 0.1
+    silence_before = generate_silence(silence_duration)
+    silence_after = generate_silence(silence_duration)
+
+    signal = np.concatenate([silence_before, flag_start, manchester_encoding(binary_string), flag_end, silence_after])
+
+    return signal
+
+
+def encode_and_generate_audio(text):
+    # delete_file("output_text.wav")
+    # delete_file("output_filtered.wav")
+    binary_string_to_send = text_to_binary(text)
+    signal = binary_to_signal(binary_string_to_send)
+    write('input_text.wav', 44100, signal.astype(np.int16))
+    main()
+    return "WAV file generated and ready to be sent."
+
+
+# -----------------Filter----------------- #
+
+def butter_bandpass(sr, order=5):
     nyquist = 0.5 * sr
-    low = lowcut / nyquist
-    high = highcut / nyquist
+    low = low_frequency / nyquist
+    high = high_frequency / nyquist
     coef = butter(order, [low, high], btype='band')
     b = coef[0]
     a = coef[1]
     return b, a
 
-def butter_bandpass_filter(data, lowcut, highcut, sr, order=5):
-    b, a = butter_bandpass(lowcut, highcut, sr, order=order)
+
+def butter_bandpass_filter(data, sr, order=5):
+    b, a = butter_bandpass(sr, order=order)
     y = lfilter(b, a, data)
     return y
 
+
 def main():
-    input_file = 'recorded.wav'
-    output_file = 'output_filtered_receiver.wav'
-    lowcut = 17500
-    highcut = 19500
+    input_file = 'input_text.wav'
+    output_file = 'output_filtered_sender.wav'
 
-    sr, data = read(input_file)
-
-    filtered_data = butter_bandpass_filter(data, lowcut, highcut, sr)
-    write(output_file, sr, np.int16(filtered_data))
-    return "Filtered Audio Generated"
-
-#-----------------Frame-----------------#
-
-def calculate_snr(data, start, end, target_frequency, sample_rate):
-
-    segment = data[start:end]
-    spectrum = np.fft.fft(segment)
-    frequencies = np.fft.fftfreq(len(spectrum), 1 / sample_rate)
-    target_index = np.abs(frequencies - target_frequency).argmin()
-    amplitude = np.abs(spectrum[target_index])
-
-    noise_segment = data[100:1000+len(segment)]
-    noise_spectrum = np.fft.fft(noise_segment)
-    noise_amplitude = np.abs(noise_spectrum[target_index])
-
-    snr = 10 * np.log10(amplitude / noise_amplitude)
-    return snr
-    
-filename = 'output_filtered_receiver.wav'
-
-def frame_analyse(filename):
-    sr, y = read(filename)
-
-    first_part_start = 0
-    first_part_end = len(y) // 2
-
-    second_part_start = len(y) // 2
-    second_part_end = len(y)
-
-    nperseg = 256
-    noverlap = 128
-
-    f, t, Sxx = signal.spectrogram(y, sr, nperseg=nperseg, noverlap=noverlap)
-
-    plt.figure()
-    plt.pcolormesh(t, f, Sxx, shading="gouraud")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Frequency [Hz]")
-    plt.title("Spectrogram of the signal")
-    plt.show()
-
-    f0 = 18000
-
-    f_idx = np.argmin(np.abs(f - f0))
-
-    thresholds_start = calculate_snr(y, first_part_start, first_part_end, low_frequency, sample_rate)
-    thresholds_end = calculate_snr(y, second_part_start, second_part_end, high_frequency, sample_rate)
-
-    t_idx_start = np.argmax(Sxx[f_idx] > thresholds_start)
-
-    t_start = t[t_idx_start]
-
-    t_idx_end = t_idx_start
-    while t_idx_end < len(t) and np.max(Sxx[f_idx, t_idx_end:]) > thresholds_end:
-        t_idx_end += 1
-
-    t_end = t[t_idx_end]
-
-    return t_start, t_end
-
-#-----------------Receiver-----------------#
-
-def dominant_frequency(signal, sample_rate=44100):
-    yf = fft(signal)
-    xf = np.linspace(0.0, sample_rate / 2.0, len(signal) // 2)
-    peaks, _ = find_peaks(np.abs(yf[0:len(signal) // 2]))
-    return xf[peaks[np.argmax(np.abs(yf[0:len(signal) // 2][peaks]))]]
-
-def binary_to_text(binary):
     try:
-      return ''.join(chr(int(binary[i:i + 8], 2)) for i in range(0, len(binary), 8))
+        sr, data = read(input_file)
+
+        filtered_data = butter_bandpass_filter(data, sr)
+        write(output_file, sr, np.int16(filtered_data))
+        return "Filtered Audio Generated"
     except Exception as e:
-      return f"Except: {e}"
+        return f"Error: {str(e)}"
 
-def decode_rs(binary_string, ecc_bytes):
-    byte_data = bytearray(int(binary_string[i:i+8], 2) for i in range(0, len(binary_string), 8))
-    rs = reedsolo.RSCodec(ecc_bytes)
-    corrected_data_tuple = rs.decode(byte_data)
-    corrected_data = corrected_data_tuple[0]
 
-    corrected_data = corrected_data.rstrip(b'\x00')
+# -----------------Player----------------- #
 
-    corrected_binary_string = ''.join(format(byte, '08b') for byte in corrected_data)
+def play_sound():
+    return gr.Audio(audio_file, autoplay=True)
 
-    return corrected_binary_string
 
-def manchester_decoding(binary_string):
-    decoded_string = ''
-    for i in tqdm(range(0, len(binary_string), 2), desc="Decoding"):
-        if i + 1 < len(binary_string):
-            if binary_string[i] == '0' and binary_string[i + 1] == '1':
-                decoded_string += '0'
-            elif binary_string[i] == '1' and binary_string[i + 1] == '0':
-                decoded_string += '1'
-            else:
-                print("Error: Invalid Manchester Encoding")
-                return None
-    return decoded_string
-
-def signal_to_binary_between_times(filename):
-    start_time, end_time = frame_analyse(filename)
-
-    sr, data = read(filename)
-
-    start_sample = int((start_time - 0.007) * sr)
-    end_sample = int((end_time - 0.007) * sr)
-    binary_string = ''
-
-    start_analyse_time = time.time()
-
-    for i in tqdm(range(start_sample, end_sample, int(sr * bit_duration))):
-        signal = data[i:i + int(sample_rate * bit_duration)]
-        frequency = dominant_frequency(signal, sr)
-        if np.abs(frequency - low_frequency) < np.abs(frequency - high_frequency):
-            binary_string += '0'
-        else:
-            binary_string += '1'
-
-    index_start = binary_string.find("1000001")
-    substrings = ["0111110", "011110"]
-    index_end = -1
-
-    for substring in substrings:
-        index = binary_string.find(substring)
-        if index != -1:
-            index_end = index
-            break
-
-    print("Binary String:", binary_string)
-    binary_string_decoded = manchester_decoding(binary_string[index_start+7:index_end])
-
-    decoded_binary_string = decode_rs(binary_string_decoded, 20)
-
-    return decoded_binary_string 
-
-def receive():
-    try:
-        audio_receive = signal_to_binary_between_times('output_filtered_receiver.wav')
-        return binary_to_text(audio_receive)
-    except Exception as e:
-        return f"Error: {e}"
-
-#-----------------Interface-----------------#
+# -----------------Interface----------------- #
 
 with gr.Blocks() as demo:
-    input_audio = gr.Audio(sources=["upload"])
-    output_text = gr.Textbox(label="Record Sound")
-    btn_convert = gr.Button(value="Convert")
-    btn_convert.click(fn=record, inputs=input_audio, outputs=output_text)
+    name = gr.Textbox(label="Your Text")
+    output = gr.Textbox(label="Output")
+    submit = gr.Button("Generate Audio")
+    submit.click(fn=encode_and_generate_audio, inputs=name, outputs=output)
 
-    output_convert = gr.Textbox(label="Received Text")
-    btn_receive = gr.Button(value="Received Text")
-    btn_receive.click(fn=receive, outputs=output_convert)
+    gr.Interface(fn=play_sound, inputs=[], outputs=gr.Audio(), live=False)
 
 demo.launch()

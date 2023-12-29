@@ -1,9 +1,9 @@
-numpy~=1.24.3
+numpy~=1.26.2
 sounddevice~=0.4.6
 gradio~=4.11.0
 reedsolo~=1.7.0
 scipy~=1.11.4
 tqdm~=4.66.1
-ipython~=8.12.2
-matplotlib~=3.5.1
-wavio~=0.0.4
+ipython~=8.19.0
+matplotlib~=3.8.2
+wavio~=0.0.8
