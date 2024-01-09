@@ -158,7 +158,7 @@ To get a local copy up and running follow these simple example steps.
 - [ ] Resolve challenges related to noise filtering, especially in scenarios with high ambient noise
 - [ ] Improve Manchester encoding detection, particularly for distances greater than 30cm
 
-See the [open issues](https://github.com/github_username/repo_name/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/awell00/acoustic_communication//issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
