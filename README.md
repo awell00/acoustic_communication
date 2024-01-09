@@ -196,8 +196,6 @@ Distributed under the GNU v3 License. See `LICENSE.txt` for more information.
 
 Your Name - [@AwellTv](https://twitter.com/AwellTv) - awellpro@gmail.com
 
-Project Link: [https://github.com/github_username/repo_name](https://github.com/github_username/repo_name)
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
